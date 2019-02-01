@@ -1,0 +1,25 @@
+{
+  "name": "node-red-localfilesystem-one-file-per-tab",
+  "version": "0.0.1",
+  "description": "It's a fork from localfilesystem Node-RED storage module. It permits to separate each flow tab into separate flow files.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "clone": "2.1.2",
+    "fs-extra": "5.0.0",
+    "i18next": "11.6.0",
+    "when": "3.7.8"
+  },
+  "keywords": [
+    "node-red",
+    "thethingbox",
+    "timesquair",
+    "tsa",
+    "ttb"
+  ],
+  "engines": {
+    "node": ">=4"
+  },
+}
