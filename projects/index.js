@@ -20,6 +20,7 @@ var when = require('when');
 var fspath = require("path");
 var nodeFn = require('when/node/function');
 var crypto = require('crypto');
+var mqtt = require('mqtt');
 
 var storageSettings = require("../settings");
 var util = require("../util");
@@ -39,6 +40,9 @@ var projectsDir;
 var activeProject
 
 var globalGitUser = false;
+
+var mqttClient;
+var mqttConnected;
 
 var flowsFileList = {};
 function addFlowFile(file){
@@ -117,6 +121,46 @@ function init(_settings, _runtime) {
     if(settings.userDir){
         getLocalFlowsFiles(fspath.join(settings.userDir,"flows"));
     }
+	
+	if (typeof settings.noderedLocalfilesystemOneFilePerTab == "object") {
+		var mqttBroker = settings.noderedLocalfilesystemOneFilePerTab.mqttBroker;
+		
+		if (mqttBroker) {
+			mqttClient = mqtt.connect(mqttBroker);
+			
+			mqttClient.on('connect', function() {
+				mqttConnected = true;
+				var mqttSubscribeTopic = settings.noderedLocalfilesystemOneFilePerTab.mqttSubscribeTopic;
+				
+				if (mqttSubscribeTopic && mqttSubscribeTopic.length > 0) {
+					if (typeof mqttSubscribeTopic == "string") {
+						mqttClient.subscribe(mqttSubscribeTopic, function(err) {
+							if (err) {
+								console.log("Can't connect to topic " + mqttSubscribeTopic);
+								console.log(err);
+							}
+						});
+					}
+					else if (Array.isArray(mqttSubscribeTopic)) {
+						for (var i=0; i<mqttSubscribeTopic.length; i++) {
+							mqttClient.subscribe(mqttSubscribeTopic[i], function(err) {
+								if (err) {
+									console.log("Can't connect to topic " + mqttSubscribeTopic[i]);
+									console.log(err);
+								}
+							});
+						}
+					}
+					
+					mqttClient.on('message', function(topic, message) {
+						getFlows().then(function(flows) {
+							sendFlowsOnMqtt(flows);
+						});
+					});
+				}
+			});
+		}
+	}
 
     var setupProjectsPromise;
 
@@ -509,6 +553,23 @@ var flowsFileBackup;
 var credentialsFile;
 var credentialsFileBackup;
 
+function sendFlowsOnMqtt(flows) {
+	if (mqttConnected) {
+		var mqttPublishTopic = settings.noderedLocalfilesystemOneFilePerTab.mqttPublishTopic;
+		
+		if (mqttPublishTopic && mqttPublishTopic.length > 0) {
+			if (typeof mqttPublishTopic == "string" ) {
+				mqttClient.publish(mqttPublishTopic, JSON.stringify(flows));
+			}
+			else if (Array.isArray(mqttPublishTopic)) {
+				for (var i=0; i<mqttPublishTopic.length; i++) {
+					mqttClient.publish(mqttPublishTopic[i], JSON.stringify(flows));
+				}
+			}
+		}
+	}
+}
+
 function getFlows() {
     return when.promise(function(resolve) {
         if (!initialFlowLoadComplete) {
@@ -580,6 +641,7 @@ function getFlows() {
             for(var i in descriptors) {
                 Array.prototype.push.apply(flows, descriptors[i].value);
             }
+			
             resolve(flows);
         });
     });
@@ -664,6 +726,8 @@ function saveFlows(flows) {
             } else {                    
             }
         }
+		
+		sendFlowsOnMqtt(flows);
             
         when.settle(promises).then(function(descriptors) {
             return resolve();

@@ -25,3 +25,32 @@ module.exports = {
     // ...
 }
 ```
+
+you can also send the merged flow by mqtt at each deploy, for example in the `settings.js`:
+
+```js
+module.exports = {
+    // ...
+	noderedLocalfilesystemOneFilePerTab: {
+		mqttBroker: "mqtt://localhost:1883",
+		mqttPublishTopic: "test/flows"
+	}
+	// ...
+```
+
+NB: mqttPublishTopic can be an array of string to publish to different topics
+
+in addition to the previous option, you can add mqtt topic trigger to send the merged flow when messages are published on it (ex: topic where something publishes at boot), for example in the `settings.js`:
+
+```js
+module.exports = {
+    // ...
+	noderedLocalfilesystemOneFilePerTab: {
+		// ...
+		mqttSubscribeTopic: ["test/boot", "test2/start"]
+		// ...
+	}
+	// ...
+```
+
+NB: mqttSubscribeTopic can be a string to subscribe on only 1 topic
