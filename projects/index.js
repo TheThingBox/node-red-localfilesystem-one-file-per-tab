@@ -44,6 +44,8 @@ var globalGitUser = false;
 var mqttClient;
 var mqttConnected;
 
+var tablessNodes = {};
+
 var flowsFileList = {};
 function addFlowFile(file){
     var p = fspath.resolve(file);
@@ -570,6 +572,26 @@ function sendFlowsOnMqtt(flows) {
 	}
 }
 
+//TODO what if a same node id has 2 different values but no '_ts' value ?
+//TODO what if a node is without "z" here but has a "z" in an imported flow ?
+//TODO export/import from client isn't handled, it needs to use storage files, not client flows
+
+//if a new tab is added directly in flows directory without using export/import from client,
+//it needs to be deployed once to propagate nodes in other tabs
+function addNewTablessNode(n) {
+	let id = n.id;
+
+	if (!tablessNodes[id]) {
+		if (!n._ts) {
+			n._ts = 0;
+		}
+		tablessNodes[id] = n;
+	}
+	else if (n._ts && n._ts > tablessNodes[id]._ts) {
+		tablessNodes[id] = n;
+	}
+}
+
 function getFlows() {
     return when.promise(function(resolve) {
         if (!initialFlowLoadComplete) {
@@ -638,13 +660,65 @@ function getFlows() {
         }
         when.settle(promises).then(function(descriptors) {
             var flows = [];
+			
             for(var i in descriptors) {
-                Array.prototype.push.apply(flows, descriptors[i].value);
+				let value = descriptors[i].value;
+				let j = value.length - 1;
+				
+				while (j >= 0) {
+					let n = value[j];
+					if (!n || typeof n !== "object") {
+						value.pop();
+						j -= 1;
+					}
+					else if (n.type !== "tab" && n.type !== "subflow" && !n.z) {
+						addNewTablessNode(value.pop());
+						j -= 1;
+					}
+					else {
+						break;
+					}
+				}
+				
+                Array.prototype.push.apply(flows, value);
             }
+			
+			let tnKeys = Object.keys(tablessNodes);
+			for (let id of tnKeys) {
+				flows.push(tablessNodes[id]);
+			}
 			
             resolve(flows);
         });
     });
+}
+
+function addTablessNodesToFlow(tab, tnToAdd = [], loop = 2) {
+	if (!Array.isArray(tab) || typeof tablessNodes != "object") {
+		return;
+	}
+	
+	let sTab = "";
+	let tnKeys = Object.keys(tablessNodes);
+	
+	try {
+		sTab = JSON.stringify(tab);
+	} catch (e) {}
+	
+	let modified = false;
+	for (let id of tnKeys) {
+		if (sTab.includes(id) && tnToAdd.indexOf(tablessNodes[id]) == -1) {
+			tnToAdd.push(tablessNodes[id]);
+			modified = true;
+		}
+	}
+	
+	if (modified && loop > 0) {
+		addTablessNodesToFlow(tab, tnToAdd, --loop);
+	}
+	else {
+		Array.prototype.push.apply(tab, tnToAdd);
+	}
 }
 
 function saveFlows(flows) {
@@ -686,13 +760,30 @@ function saveFlows(flows) {
                 }
                 tab[n.z].push(n);
             } else {
-                if (!tab.hasOwnProperty("other")) {
-                    tab["other"] = [];
-                }
-                tab["other"].push(n);
-                tabName["other"] = "other/";
+				let nString = "";
+				let tnString = "";
+				
+				try {
+					nString = JSON.stringify(n);
+					
+					//TODO: get "_ts" from flows instead of removing it from "tablessNodes" after cloning
+					let tnTmp = JSON.parse(JSON.stringify(tablessNodes[n.id]));
+					delete tnTmp._ts;
+					tnString = JSON.stringify(tnTmp);
+				} catch (e) {}
+				
+				if (nString !== tnString) {
+					n._ts = Date.now();
+				}
+				
+                addNewTablessNode(n);
             }
         }
+		
+		var id;
+		for (id in tab) {
+			addTablessNodesToFlow(tab[id]);
+		}
 
         tabUsed = [];
         
