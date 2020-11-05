@@ -125,10 +125,28 @@ function init(_settings, _runtime) {
     }
 	
 	if (typeof settings.noderedLocalfilesystemOneFilePerTab == "object") {
-		var mqttBroker = settings.noderedLocalfilesystemOneFilePerTab.mqttBroker;
+		var protocol = "mqtt";
+		var mqttSecure = settings.noderedLocalfilesystemOneFilePerTab.mqttSecure || false;
+		var mqttBroker = settings.noderedLocalfilesystemOneFilePerTab.mqttBroker || "mosquitto";
+		var mqttPort = settings.noderedLocalfilesystemOneFilePerTab.mqttPort || 1883;
+		var mqttUsername = settings.noderedLocalfilesystemOneFilePerTab.mqttUsername;
+		var mqttPassword = settings.noderedLocalfilesystemOneFilePerTab.mqttPassword;
+		
+		var url = protocol;
+		if (mqttSecure) {
+			url += 's';
+		}
+		if (mqttUsername) {
+			url += mqttUsername;
+			if (mqttPassword) {
+				url += ':' + mqttPassword;
+			}
+			url += '@';
+		}	
+		url += mqttBroker + ':' + mqttPort;
 		
 		if (mqttBroker) {
-			mqttClient = mqtt.connect(mqttBroker);
+			mqttClient = mqtt.connect(url);
 			
 			mqttClient.on('connect', function() {
 				mqttConnected = true;
