@@ -140,6 +140,7 @@ function init(_settings, _runtime) {
 			//TODO: should add & verify certificate
 			options.rejectUnauthorized = false;
 		}
+		url += "://";
 		if (mqttUsername) {
 			url += mqttUsername;
 			if (mqttPassword) {
