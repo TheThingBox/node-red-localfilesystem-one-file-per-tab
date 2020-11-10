@@ -132,9 +132,13 @@ function init(_settings, _runtime) {
 		var mqttUsername = settings.noderedLocalfilesystemOneFilePerTab.mqttUsername;
 		var mqttPassword = settings.noderedLocalfilesystemOneFilePerTab.mqttPassword;
 		
+		var options = {};
+		
 		var url = protocol;
 		if (mqttSecure) {
 			url += 's';
+			//TODO: should add & verify certificate
+			options.rejectUnauthorized = false;
 		}
 		if (mqttUsername) {
 			url += mqttUsername;
@@ -146,7 +150,7 @@ function init(_settings, _runtime) {
 		url += mqttBroker + ':' + mqttPort;
 		
 		if (mqttBroker) {
-			mqttClient = mqtt.connect(url);
+			mqttClient = mqtt.connect(url, options);
 			
 			mqttClient.on('connect', function() {
 				mqttConnected = true;
