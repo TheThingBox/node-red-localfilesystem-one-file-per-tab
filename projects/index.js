@@ -726,11 +726,12 @@ function addTablessNodesToFlow(tab, tnToAdd = [], loop = 2) {
 	
 	try {
 		sTab = JSON.stringify(tab);
+		sTab += JSON.stringify(tnToAdd);
 	} catch (e) {}
 	
 	let modified = false;
 	for (let id of tnKeys) {
-		if (sTab.includes(id) && tnToAdd.indexOf(tablessNodes[id]) == -1) {
+		if (tnToAdd.indexOf(tablessNodes[id]) == -1 && sTab.includes(id)) {
 			tnToAdd.push(tablessNodes[id]);
 			modified = true;
 		}
