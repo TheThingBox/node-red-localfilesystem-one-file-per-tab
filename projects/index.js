@@ -44,6 +44,8 @@ var globalGitUser = false;
 var mqttClient;
 var mqttConnected;
 
+var sortFlows = false;
+
 var tablessNodes = {};
 
 var flowsFileList = {};
@@ -184,6 +186,10 @@ function init(_settings, _runtime) {
 					});
 				}
 			});
+		}
+		
+		if (typeof settings.noderedLocalfilesystemOneFilePerTab.sortFlows === 'boolean') {
+			sortFlows = settings.noderedLocalfilesystemOneFilePerTab.sortFlows;
 		}
 	}
 
@@ -745,6 +751,34 @@ function addTablessNodesToFlow(tab, tnToAdd = [], loop = 2) {
 	}
 }
 
+//sort elements
+function sort(elems, fields, order = 1) {
+    if (!Array.isArray(elems)) {
+        return [];
+    }
+    if (!Array.isArray(fields)) {
+        fields = [fields];
+    }
+    if (order !== -1 && order !== 1) {
+        order = 1;
+    }
+
+    return elems.sort(function (a, b) {
+        for (let i=0, max=fields.length; i<max; i++) {
+            const field = fields[i];
+            if (a[field] > b[field] || (a[field] === undefined && b[field] !== undefined)) {
+                return order;
+            }
+            else if (a[field] < b[field] || (a[field] !== undefined && b[field] === undefined)) {
+                return -(order);
+            }
+            else if (i === fields.length - 1) {
+                return 0;
+            }
+        }
+    });
+}
+
 function saveFlows(flows) {
     if (settings.readOnly) {
         return when.resolve();
@@ -812,6 +846,18 @@ function saveFlows(flows) {
         tabUsed = [];
         
         for(var t in tab) {
+			if (sortFlows === true) {
+				//sort nodes by z (the ones displayed in the flow first, then config ones) then id
+				sort(tab[t], ['z', 'type', 'id'], 1);
+				//put "tab" node type in first position
+				const tabNodeIndex = tab[t].findIndex(n => {
+					return n.type === 'tab' || n.type === 'subflow';
+				});
+				if (tabNodeIndex !== -1) {
+					tab[t].unshift(tab[t].splice(tabNodeIndex, 1)[0]);
+				}
+			}
+			
             if (settings.flowFilePretty){
                 flowData = JSON.stringify(tab[t], null, 4);
             } else {
