@@ -9,7 +9,7 @@
   "dependencies": {
     "clone": "2.1.2",
     "fs-extra": "5.0.0",
-    "i18next": "11.6.0",
+    "i18next": "26.3.4",
     "mqtt": "4.2.8",
     "when": "3.7.8"
   },
